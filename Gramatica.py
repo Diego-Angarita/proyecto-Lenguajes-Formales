@@ -1,137 +1,142 @@
 """
-Módulo de Representación de Gramáticas Libres de Contexto
+Módulo de Representación de Gramáticas Libres de Contexto (CFG)
 
-Este módulo define la estructura de datos fundamental para representar gramáticas
-libres de contexto (CFG) y proporciona métodos para:
-- Parsear gramáticas desde entrada estándar
-- Clasificar símbolos en terminales y no terminales
-- Gestionar reglas de producción
-- Proporcionar acceso estructurado a las producciones
+Este módulo es el núcleo para la representación de una gramática. Se encarga de
+almacenar, procesar y proporcionar acceso a los componentes de una gramática,
+tales como producciones, símbolos terminales y no terminales.
 
-Formato de entrada soportado:
-- Formato estándar: A -> abc def
-- Formato alternativo: A abc def (primer carácter es el no terminal)
+Funcionalidades clave:
+- Parseo de gramáticas desde la entrada estándar.
+- Clasificación automática de símbolos.
+- Estructura de datos optimizada para el acceso a producciones.
 """
 
 class Gramatica:
     """
-    Representación de una Gramática Libre de Contexto (CFG)
-    
+    Representa una Gramática Libre de Contexto (CFG).
+
+    Esta clase almacena la definición de una gramática, incluyendo sus producciones,
+    símbolos y el símbolo inicial. La estructura está diseñada para facilitar
+    los algoritmos de análisis sintáctico.
+
     Atributos:
-        producciones: Mapeo de no terminales a sus reglas de producción
-        no_terminales: Conjunto de símbolos no terminales (mayúsculas)
-        terminales: Conjunto de símbolos terminales (minúsculas y símbolos especiales)
-        simbolo_inicial: Símbolo de inicio de la gramática (por defecto 'S')
+        producciones (dict): Un diccionario que mapea cada no terminal a una lista
+                             de sus producciones. Cada producción es una lista de símbolos.
+                             Ej: {'S': [['A', 'b'], ['c']]}
+        no_terminales (set): Un conjunto que contiene todos los símbolos no terminales.
+        terminales (set): Un conjunto que contiene todos los símbolos terminales.
+        simbolo_inicial (str): El símbolo inicial de la gramática.
     """
     def __init__(self):
-        self.producciones = {}      # Dict[str, List[List[str]]]: NoTerminal -> Lista de producciones
-        self.no_terminales = set()  # Set[str]: Símbolos no terminales identificados
-        self.terminales = set()     # Set[str]: Símbolos terminales identificados
-        self.simbolo_inicial = 'S'  # str: Símbolo inicial por defecto
-        
+        """Inicializa una gramática vacía."""
+        self.producciones = {}
+        self.no_terminales = set()
+        self.terminales = set()
+        self.simbolo_inicial = 'S'  # Valor por defecto, se sobrescribe durante el parseo.
+
     def agregar_produccion(self, no_terminal, produccion):
         """
-        Agregar una regla de producción a la gramática
-        
+        Añade una regla de producción y actualiza los conjuntos de símbolos.
+
+        Este método es el único punto de entrada para añadir producciones,
+        asegurando que la gramática se mantenga consistente.
+
         Args:
-            no_terminal (str): Símbolo no terminal del lado izquierdo
-            produccion (List[str]): Secuencia de símbolos del lado derecho
-            
-        Efectos secundarios:
-            - Actualiza el conjunto de no terminales
-            - Clasifica automáticamente los símbolos como terminales o no terminales
+            no_terminal (str): El no terminal del lado izquierdo de la producción.
+            produccion (list[str]): La secuencia de símbolos en el lado derecho.
         """
+        # Asegura que el no terminal tenga una entrada en el diccionario.
         if no_terminal not in self.producciones:
             self.producciones[no_terminal] = []
         self.producciones[no_terminal].append(produccion)
         self.no_terminales.add(no_terminal)
-        
-        # Clasificación automática de símbolos terminales
-        # Criterio: minúsculas y símbolos especiales (excepto epsilon 'e' y fin de cadena '$')
+
+        # Identifica y registra los símbolos terminales basándose en la convención
+        # de que los terminales son minúsculas o símbolos no alfabéticos.
         for simbolo in produccion:
             if simbolo != 'e' and not simbolo.isupper() and simbolo != '$':
                 self.terminales.add(simbolo)
-    
+
     def parsear_entrada(self):
         """
-        Parsear gramática desde entrada estándar
-        
-        Formato de entrada esperado:
-        - Primera línea: número de reglas de producción
-        - Siguientes líneas: reglas en formato "A -> abc def" o "A abc def"
-        
-        Maneja dos formatos:
-        1. Estándar: "A -> abc def" (múltiples producciones separadas por espacios)
-        2. Compacto: "A abc def" (primer carácter es el no terminal)
+        Parsea una gramática desde la entrada estándar.
+
+        El método lee la definición de la gramática, que consiste en el número
+        de reglas seguido de las reglas mismas. Es flexible y soporta dos
+        formatos comunes para definir las producciones.
+
+        Formatos de entrada soportados:
+        1. "A -> a b | c": Múltiples producciones para un no terminal en una línea.
+        2. "A a b c": Un no terminal seguido de sus producciones.
+
+        El primer no terminal leído se establece como el símbolo inicial.
         """
-        n = int(input().strip())
-        primer_no_terminal = None
-        
-        for i in range(n):
-            linea = input().strip()
+        try:
+            n = int(input().strip())
+        except (ValueError, EOFError):
+            n = 0
             
-            # Detección automática del formato de entrada
+        primer_no_terminal = None
+
+        for _ in range(n):
+            try:
+                linea = input().strip()
+            except EOFError:
+                break
+
+            if not linea:
+                continue
+
+            # Detección automática del formato de la regla.
             if '->' in linea:
-                # Formato estándar: A -> produccion1 produccion2 ...
+                # Formato: "A -> prod1 prod2 ..."
                 partes = linea.split('->')
                 no_terminal = partes[0].strip()
-                
-                # El primer no terminal encontrado será el símbolo inicial
-                if primer_no_terminal is None:
-                    primer_no_terminal = no_terminal
-                
-                # Extraer múltiples producciones separadas por espacios
                 producciones_str = partes[1].strip().split()
-                
-                for prod in producciones_str:
-                    # Descomponer cada producción en símbolos individuales
-                    produccion = list(prod)
-                    self.agregar_produccion(no_terminal, produccion)
             else:
-                # Formato compacto: A produccion1 produccion2 ...
+                # Formato: "A prod1 prod2 ..."
                 partes = linea.split()
-                if partes and len(partes) >= 1:
-                    no_terminal = partes[0][0]  # Extraer no terminal del primer carácter
-                    
-                    # El primer no terminal encontrado será el símbolo inicial
-                    if primer_no_terminal is None:
-                        primer_no_terminal = no_terminal
-                    
-                    # Procesar cada producción restante
-                    for j in range(1, len(partes)):
-                        produccion = list(partes[j])
-                        self.agregar_produccion(no_terminal, produccion)
-        
-        # Establecer el símbolo inicial como el primer no terminal encontrado
-        if primer_no_terminal is not None:
+                no_terminal = partes[0]
+                producciones_str = partes[1:]
+
+            # Establece el símbolo inicial con el primer no terminal encontrado.
+            if primer_no_terminal is None:
+                primer_no_terminal = no_terminal
+
+            for prod_str in producciones_str:
+                produccion = list(prod_str) if prod_str != 'e' else ['e']
+                self.agregar_produccion(no_terminal, produccion)
+
+        if primer_no_terminal:
             self.simbolo_inicial = primer_no_terminal
-        
-        # Agregar marcador de fin de cadena al conjunto de terminales
+
+        # El símbolo '$' se añade explícitamente para representar el fin de la cadena.
         self.terminales.add('$')
-    
+
     def obtener_producciones(self, no_terminal):
         """
-        Obtener todas las producciones para un no terminal específico
-        
+        Devuelve todas las producciones para un no terminal dado.
+
         Args:
-            no_terminal (str): Símbolo no terminal a consultar
-            
+            no_terminal (str): El símbolo no terminal a consultar.
+
         Returns:
-            List[List[str]]: Lista de producciones (cada producción es una lista de símbolos)
+            list[list[str]]: Una lista de producciones. Si el no terminal
+                             no existe, devuelve una lista vacía.
         """
         return self.producciones.get(no_terminal, [])
-    
+
     def __str__(self):
         """
-        Representación textual de la gramática en formato BNF
-        
+        Genera una representación en cadena de la gramática en formato BNF.
+
         Returns:
-            str: Gramática formateada como "A -> prod1 | prod2 | ..."
+            str: Una cadena multilinea que representa la gramática, ideal para
+                 depuración y visualización. Ej: "S -> A b | c".
         """
         resultado = []
+        # Ordena los no terminales para una salida consistente.
         for nt in sorted(self.producciones.keys()):
-            # Convertir cada producción (lista) a string y unir con '|'
-            prods = [''.join(p) for p in self.producciones[nt]]
-            resultado.append(f"{nt} -> {' | '.join(prods)}")
+            prods_str = ["".join(p) for p in self.producciones[nt]]
+            resultado.append(f"{nt} -> {' | '.join(prods_str)}")
         return '\n'.join(resultado)
-        

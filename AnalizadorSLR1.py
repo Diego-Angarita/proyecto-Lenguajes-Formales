@@ -1,194 +1,216 @@
 """
-Analizador SLR(1) - Implementación Principal
+Implementación del Analizador Sintáctico SLR(1)
+
+Este módulo implementa un analizador sintáctico ascendente (Bottom-Up) del
+tipo SLR(1). El proceso se divide en dos fases principales:
+1. Construcción del autómata de items LR(0).
+2. Creación de las tablas de análisis ACCION e IR_A.
+
+El analizador utiliza los conjuntos SIGUIENTE para resolver conflictos de
+reducción, lo que lo hace más potente que un analizador LR(0) simple.
 """
 
 from ItemLR0 import ItemLR0, EstadoLR0
 
 class AnalizadorSLR1:
+    """
+    Implementa un analizador SLR(1) completo.
+
+    Esta clase se encarga de aumentar la gramática, construir el autómata LR(0),
+    generar las tablas de análisis y, finalmente, analizar cadenas de entrada.
+
+    Atributos:
+        gramatica: La gramática original.
+        primero_siguiente: Objeto con los conjuntos PRIMERO y SIGUIENTE.
+        estados (list): La lista de estados (EstadoLR0) del autómata.
+        accion (dict): La tabla de acciones del analizador.
+        ir_a (dict): La tabla de transiciones para no terminales.
+        es_slr1 (bool): True si la gramática es SLR(1), False si no.
+        inicio_aumentado (str): El nuevo símbolo inicial para la gramática aumentada.
+    """
     def __init__(self, gramatica, primero_siguiente):
+        """Inicializa el analizador con la gramática y los conjuntos PRIMERO/SIGUIENTE."""
         self.gramatica = gramatica
         self.primero_siguiente = primero_siguiente
         self.estados = []
-        self.accion = {}  # (estado, terminal) -> ('desplazar', estado) | ('reducir', produccion) | 'aceptar'
-        self.ir_a = {}    # (estado, no_terminal) -> estado
+        self.accion = {}
+        self.ir_a = {}
         self.es_slr1 = False
         
-        # Aumentar gramática: S' -> S
-        self.inicio_aumentado = "S'"
-    
+        # Se aumenta la gramática con una nueva producción S' -> S
+        # para tener un único punto de aceptación.
+        self.inicio_aumentado = self.gramatica.simbolo_inicial + "'"
+
     def clausura(self, items):
         """
-        Calcular clausura de un conjunto de items
-        Si [A -> a·Bb] está en clausura, agregar todos [B -> ·γ] para B -> γ
+        Calcula la clausura de un conjunto de items LR(0).
+
+        La clausura expande un conjunto de items para incluir todas las producciones
+        que podrían ser necesarias. Si un item tiene la forma [A -> α·Bβ], se
+        añaden todos los items [B -> ·γ] a la clausura.
+
+        Args:
+            items (set): Un conjunto de `ItemLR0`.
+
+        Returns:
+            set: El conjunto de items cerrado.
         """
         conjunto_clausura = set(items)
         agregado = True
-        
         while agregado:
             agregado = False
             nuevos_items = set()
-            
             for item in conjunto_clausura:
                 simbolo_sig = item.simbolo_siguiente()
-                
-                # Si el siguiente símbolo es un no terminal
                 if simbolo_sig and simbolo_sig in self.gramatica.no_terminales:
-                    # Agregar todas las producciones de ese no terminal
                     for produccion in self.gramatica.obtener_producciones(simbolo_sig):
                         nuevo_item = ItemLR0(simbolo_sig, produccion, 0)
-                        if nuevo_item not in conjunto_clausura:
+                        if nuevo_item not in conjunto_clausura and nuevo_item not in nuevos_items:
                             nuevos_items.add(nuevo_item)
                             agregado = True
-            
             conjunto_clausura.update(nuevos_items)
-        
         return conjunto_clausura
-    
+
     def calcular_ir_a(self, items, simbolo):
         """
-        Calcular IR_A(I, X): conjunto de items [A -> aX·b] tal que [A -> a·Xb] está en I
+        Calcula la función de transición IR_A (goto) para un conjunto de items y un símbolo.
+
+        Esta función determina el nuevo estado al que se transita desde un estado
+        actual (representado por `items`) al consumir un `simbolo`.
+
+        Args:
+            items (set): El conjunto de items del estado actual.
+            simbolo (str): El símbolo de transición.
+
+        Returns:
+            set: La clausura del nuevo conjunto de items.
         """
         conjunto_ir_a = set()
-        
         for item in items:
             if item.simbolo_siguiente() == simbolo:
                 avanzado = item.avanzar()
                 if avanzado:
                     conjunto_ir_a.add(avanzado)
-        
         return self.clausura(conjunto_ir_a)
-    
+
     def construir_automata(self):
-        """Construir autómata LR(0) (colección de conjuntos de items LR(0))"""
-        
-        # Crear estado inicial con producción aumentada S' -> ·S
+        """Construye el autómata de estados LR(0) (la colección canónica)."""
+        # El estado inicial se crea a partir de la clausura de la producción aumentada.
         item_inicial = ItemLR0(self.inicio_aumentado, [self.gramatica.simbolo_inicial], 0)
         items_iniciales = self.clausura({item_inicial})
         
         estado_inicial = EstadoLR0(0)
-        for item in items_iniciales:
-            estado_inicial.agregar_item(item)
+        estado_inicial.items = items_iniciales
         
         self.estados = [estado_inicial]
-        dict_estados = {frozenset(items_iniciales): 0}  # Mapear conjuntos de items a IDs de estado
+        dict_estados = {frozenset(items_iniciales): 0}
         
-        # Cola de estados a procesar
         cola = [estado_inicial]
-        
         while cola:
             estado_actual = cola.pop(0)
             
-            # Encontrar todos los símbolos que pueden seguir al punto
-            simbolos = set()
-            for item in estado_actual.items:
-                simbolo_sig = item.simbolo_siguiente()
-                if simbolo_sig:
-                    simbolos.add(simbolo_sig)
+            simbolos = {item.simbolo_siguiente() for item in estado_actual.items if item.simbolo_siguiente()}
             
-            # Para cada símbolo, calcular IR_A y crear nuevo estado si es necesario
             for simbolo in simbolos:
                 items_ir_a = self.calcular_ir_a(estado_actual.items, simbolo)
-                
-                if len(items_ir_a) == 0:
+                if not items_ir_a:
                     continue
                 
                 ir_a_congelado = frozenset(items_ir_a)
-                
                 if ir_a_congelado in dict_estados:
-                    # Estado ya existe
                     id_estado_siguiente = dict_estados[ir_a_congelado]
                 else:
-                    # Crear nuevo estado
                     id_estado_siguiente = len(self.estados)
                     nuevo_estado = EstadoLR0(id_estado_siguiente)
-                    for item in items_ir_a:
-                        nuevo_estado.agregar_item(item)
+                    nuevo_estado.items = items_ir_a
                     
                     self.estados.append(nuevo_estado)
                     dict_estados[ir_a_congelado] = id_estado_siguiente
                     cola.append(nuevo_estado)
                 
-                # Agregar transición
                 estado_actual.transiciones[simbolo] = id_estado_siguiente
-    
+
     def construir_tabla_analisis(self):
-        """Construir tabla de análisis SLR(1) (tablas ACCION e IR_A)"""
-        
+        """
+        Construye las tablas de análisis SLR(1) (ACCION e IR_A).
+
+        Reglas:
+        1. Si [A -> α·aβ] está en Ii y IR_A(Ii, a) = Ij, entonces ACCION[i, a] = "desplazar j".
+        2. Si [A -> α·] está en Ii, entonces ACCION[i, b] = "reducir A -> α" para todo b en SIGUIENTE(A).
+        3. Si [S' -> S·] está en Ii, entonces ACCION[i, $] = "aceptar".
+        4. Si IR_A(Ii, A) = Ij, entonces IR_A[i, A] = j.
+
+        Returns:
+            bool: True si no hay conflictos, False si se encuentra alguno.
+        """
         self.construir_automata()
         conflictos = []
-        
+
         for estado in self.estados:
             for item in estado.items:
-                # Caso 1: Items de desplazamiento [A -> α·aβ] donde a es terminal
                 simbolo_sig = item.simbolo_siguiente()
+
+                # Regla 1: Acción de desplazamiento
                 if simbolo_sig and simbolo_sig in self.gramatica.terminales:
                     clave = (estado.id_estado, simbolo_sig)
                     estado_siguiente = estado.transiciones.get(simbolo_sig)
-                    
-                    if clave in self.accion:
-                        conflictos.append(f"Conflicto Desplazar-Reducir en estado {estado.id_estado}")
-                        self.es_slr1 = False
+                    if clave in self.accion and self.accion[clave] != ('desplazar', estado_siguiente):
+                        conflictos.append(f"Conflicto Desplazar-Reducir en estado {estado.id_estado} con símbolo {simbolo_sig}")
                     else:
                         self.accion[clave] = ('desplazar', estado_siguiente)
-                
-                # Caso 2: Items de reducción [A -> α·]
-                elif simbolo_sig is None:
-                    # Verificar si es el item de aceptación
+
+                # Reglas 2 y 3: Acciones de reducción y aceptación
+                elif not simbolo_sig:
                     if item.no_terminal == self.inicio_aumentado:
-                        clave = (estado.id_estado, '$')
-                        self.accion[clave] = 'aceptar'
+                        # Regla 3: Aceptación
+                        self.accion[(estado.id_estado, '$')] = 'aceptar'
                     else:
-                        # Agregar acción de reducción para todos los terminales en SIGUIENTE(A)
+                        # Regla 2: Reducción
                         for terminal in self.primero_siguiente.siguiente[item.no_terminal]:
                             clave = (estado.id_estado, terminal)
-                            
+                            produccion_a_reducir = (item.no_terminal, tuple(item.produccion))
                             if clave in self.accion:
-                                conflictos.append(f"Conflicto Reducir-Reducir en estado {estado.id_estado}")
-                                self.es_slr1 = False
+                                conflictos.append(f"Conflicto Reducir-Reducir en estado {estado.id_estado} con símbolo {terminal}")
                             else:
                                 self.accion[clave] = ('reducir', item.no_terminal, item.produccion)
-                
-                # Caso especial: Items con producción epsilon [A -> ·e]
-                elif simbolo_sig == 'e':
-                    # Para producciones epsilon, agregar reducción inmediatamente
-                    for terminal in self.primero_siguiente.siguiente[item.no_terminal]:
-                        clave = (estado.id_estado, terminal)
-                        
-                        if clave in self.accion:
-                            conflictos.append(f"Conflicto Epsilon-Reducir en estado {estado.id_estado}")
-                            self.es_slr1 = False
-                        else:
-                            self.accion[clave] = ('reducir', item.no_terminal, ['e'])
-                
-                # Caso 3: IR_A para no terminales
-                if simbolo_sig and simbolo_sig in self.gramatica.no_terminales:
-                    clave = (estado.id_estado, simbolo_sig)
-                    estado_siguiente = estado.transiciones.get(simbolo_sig)
-                    self.ir_a[clave] = estado_siguiente
-        
-        if len(conflictos) == 0:
-            self.es_slr1 = True
-        
+            
+            # Regla 4: Tabla IR_A para no terminales
+            for simbolo, id_estado_siguiente in estado.transiciones.items():
+                if simbolo in self.gramatica.no_terminales:
+                    self.ir_a[(estado.id_estado, simbolo)] = id_estado_siguiente
+
+        self.es_slr1 = not conflictos
+        if conflictos:
+            print("Conflictos encontrados:", conflictos)
         return self.es_slr1
-    
+
     def analizar(self, cadena_entrada):
-        """Analizar cadena de entrada usando analizador SLR(1)"""
-        
+        """
+        Analiza una cadena de entrada utilizando las tablas SLR(1).
+
+        El analizador utiliza una pila de estados y las tablas ACCION e IR_A
+        para decidir si desplazar, reducir o aceptar.
+
+        Args:
+            cadena_entrada (str): La cadena a analizar.
+
+        Returns:
+            bool: True si la cadena es aceptada, False si no.
+        """
         if not self.es_slr1:
             return False
         
         cadena_entrada += '$'
-        pila = [0]  # Pila de IDs de estado
+        pila = [0]
         indice_entrada = 0
         
         while True:
             estado = pila[-1]
-            entrada_actual = cadena_entrada[indice_entrada]
-            
-            clave = (estado, entrada_actual)
-            
+            simbolo_actual = cadena_entrada[indice_entrada]
+            clave = (estado, simbolo_actual)
+
             if clave not in self.accion:
-                return False
+                return False  # Error: acción no definida.
             
             accion = self.accion[clave]
             
@@ -200,30 +222,26 @@ class AnalizadorSLR1:
                 indice_entrada += 1
             
             elif accion[0] == 'reducir':
-                no_terminal = accion[1]
-                produccion = accion[2]
+                no_terminal, produccion = accion[1], accion[2]
                 
-                # Desapilar |produccion| estados (saltar epsilon)
                 if produccion != ['e']:
-                    for _ in range(len(produccion)):
+                    for _ in produccion:
                         pila.pop()
                 
-                # Obtener estado actual después de desapilar
                 estado_actual = pila[-1]
-                
-                # Usar tabla IR_A
                 clave_ir_a = (estado_actual, no_terminal)
+                
                 if clave_ir_a not in self.ir_a:
-                    return False
+                    return False # Error: transición IR_A no definida.
                 
                 pila.append(self.ir_a[clave_ir_a])
             
             else:
-                return False
-    
+                return False # Acción desconocida.
+
     def imprimir_estados(self):
-        """Imprimir todos los estados para depuración"""
-        print("\nAutómata LR(0)")
+        """Imprime los estados y transiciones del autómata LR(0) para depuración."""
+        print("\n=== Autómata LR(0) ===")
         for estado in self.estados:
             print(estado)
             if estado.transiciones:
