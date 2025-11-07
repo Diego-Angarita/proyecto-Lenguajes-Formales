@@ -11,6 +11,8 @@ Este script es el orquestador principal del proyecto. Su función es:
    o analizadores compatibles.
 """
 
+import time  # Se mantiene la importación
+
 from Gramatica import Gramatica
 from First_Follow import First_Follow
 from AnalizadorLL1 import AnalizadorLL1
@@ -26,26 +28,52 @@ def main():
     3. Construcción de ambos analizadores.
     4. Interacción con el usuario para el análisis de cadenas.
     """
+    
     # Fase 1: Leer y parsear la gramática proporcionada por el usuario.
+    # --- MEDICIÓN ELIMINADA DE ESTA SECCIÓN ---
     print("Por favor, introduce la gramática:")
     gramatica = Gramatica()
     gramatica.parsear_entrada()
+    
     print("\nGramática parseada:")
     print(gramatica)
 
-    # Fase 2: Calcular los conjuntos FIRST y FOLLOW, que son
-    # prerrequisitos para ambos tipos de analizadores.
+    # --- INICIO DE MEDICIONES ---
+
+    # Fase 2: Calcular los conjuntos FIRST y FOLLOW
     first_follow = First_Follow(gramatica)
+    
+    # Medición de FIRST
+    start_time_first = time.perf_counter()
     first_follow.calcular_first()
+    end_time_first = time.perf_counter()
+    print(f"\nCálculo de FIRST (en {end_time_first - start_time_first:.6f} segundos)")
+
+    # Medición de FOLLOW
+    start_time_follow = time.perf_counter()
     first_follow.calcular_follow()
+    end_time_follow = time.perf_counter()
+    print(f"Cálculo de FOLLOW (en {end_time_follow - start_time_follow:.6f} segundos)")
 
-    # Fase 3: Construir el analizador LL(1) y determinar si la gramática es compatible.
+    # Fase 3: Construir el analizador LL(1)
     analizador_ll1 = AnalizadorLL1(gramatica, first_follow)
+    
+    # Medición de tabla LL(1)
+    start_time_ll1 = time.perf_counter()
     es_ll1 = analizador_ll1.construir_tabla_analisis()
+    end_time_ll1 = time.perf_counter()
+    print(f"\nConstrucción de tabla LL(1) (en {end_time_ll1 - start_time_ll1:.6f} segundos)")
 
-    # Fase 4: Construir el analizador SLR(1) y determinar su compatibilidad.
+    # Fase 4: Construir el analizador SLR(1)
     analizador_slr1 = AnalizadorSLR1(gramatica, first_follow)
+    
+    # Medición de tabla SLR(1)
+    start_time_slr1 = time.perf_counter()
     es_slr1 = analizador_slr1.construir_tabla_analisis()
+    end_time_slr1 = time.perf_counter()
+    print(f"Construcción de tabla SLR(1) (en {end_time_slr1 - start_time_slr1:.6f} segundos)")
+
+    # --- FIN DE MEDICIONES ---
 
     # Fase 5: Informar al usuario y proceder con el análisis de cadenas.
     print("\n--- Resultados del Análisis de la Gramática ---")
@@ -97,7 +125,10 @@ def analizar_cadenas(analizador):
         if not linea:
             break
         
+        # --- MEDICIÓN ELIMINADA DE ESTA SECCIÓN ---
         resultado = analizador.analizar(linea)
+        
+        # Se revierte a la impresión original
         print("Resultado:", "si" if resultado else "no")
     print("-" * 20)
 
