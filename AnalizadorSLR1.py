@@ -6,7 +6,7 @@ tipo SLR(1). El proceso se divide en dos fases principales:
 1. Construcción del autómata de items LR(0).
 2. Creación de las tablas de análisis ACCION e IR_A.
 
-El analizador utiliza los conjuntos SIGUIENTE para resolver conflictos de
+El analizador utiliza los conjuntos FOLLOW para resolver conflictos de
 reducción, lo que lo hace más potente que un analizador LR(0) simple.
 """
 
@@ -21,17 +21,17 @@ class AnalizadorSLR1:
 
     Atributos:
         gramatica: La gramática original.
-        primero_siguiente: Objeto con los conjuntos PRIMERO y SIGUIENTE.
+        first_follow: Objeto con los conjuntos FIRST y FOLLOW.
         estados (list): La lista de estados (EstadoLR0) del autómata.
         accion (dict): La tabla de acciones del analizador.
         ir_a (dict): La tabla de transiciones para no terminales.
         es_slr1 (bool): True si la gramática es SLR(1), False si no.
         inicio_aumentado (str): El nuevo símbolo inicial para la gramática aumentada.
     """
-    def __init__(self, gramatica, primero_siguiente):
-        """Inicializa el analizador con la gramática y los conjuntos PRIMERO/SIGUIENTE."""
+    def __init__(self, gramatica, first_follow):
+        """Inicializa el analizador con la gramática y los conjuntos FIRST/FOLLOW."""
         self.gramatica = gramatica
-        self.primero_siguiente = primero_siguiente
+        self.first_follow = first_follow
         self.estados = []
         self.accion = {}
         self.ir_a = {}
@@ -136,7 +136,7 @@ class AnalizadorSLR1:
 
         Reglas:
         1. Si [A -> α·aβ] está en Ii y IR_A(Ii, a) = Ij, entonces ACCION[i, a] = "desplazar j".
-        2. Si [A -> α·] está en Ii, entonces ACCION[i, b] = "reducir A -> α" para todo b en SIGUIENTE(A).
+        2. Si [A -> α·] está en Ii, entonces ACCION[i, b] = "reducir A -> α" para todo b en FOLLOW(A).
         3. Si [S' -> S·] está en Ii, entonces ACCION[i, $] = "aceptar".
         4. Si IR_A(Ii, A) = Ij, entonces IR_A[i, A] = j.
 
@@ -166,7 +166,7 @@ class AnalizadorSLR1:
                         self.accion[(estado.id_estado, '$')] = 'aceptar'
                     else:
                         # Regla 2: Reducción
-                        for terminal in self.primero_siguiente.siguiente[item.no_terminal]:
+                        for terminal in self.first_follow.follow[item.no_terminal]:
                             clave = (estado.id_estado, terminal)
                             produccion_a_reducir = (item.no_terminal, tuple(item.produccion))
                             if clave in self.accion:

@@ -22,7 +22,7 @@ def main():
 
     El flujo de ejecución es secuencial:
     1. Parseo de la gramática.
-    2. Cálculo de conjuntos PRIMERO y SIGUIENTE.
+    2. Cálculo de conjuntos FIRST y FOLLOW.
     3. Construcción de ambos analizadores.
     4. Interacción con el usuario para el análisis de cadenas.
     """
@@ -33,11 +33,11 @@ def main():
     print("\nGramática parseada:")
     print(gramatica)
 
-    # Fase 2: Calcular los conjuntos PRIMERO y SIGUIENTE, que son
+    # Fase 2: Calcular los conjuntos FIRST y FOLLOW, que son
     # prerrequisitos para ambos tipos de analizadores.
     first_follow = First_Follow(gramatica)
-    first_follow.calcular_primero()
-    first_follow.calcular_siguiente()
+    first_follow.calcular_first()
+    first_follow.calcular_follow()
 
     # Fase 3: Construir el analizador LL(1) y determinar si la gramática es compatible.
     analizador_ll1 = AnalizadorLL1(gramatica, first_follow)

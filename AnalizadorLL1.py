@@ -17,14 +17,14 @@ class AnalizadorLL1:
 
     Atributos:
         gramatica: La gramática a analizar.
-        primero_siguiente: Objeto con los conjuntos PRIMERO y SIGUIENTE.
+        first_follow: Objeto con los conjuntos FIRST y FOLLOW.
         tabla_analisis (dict): La tabla de análisis LL(1).
         es_ll1 (bool): True si la gramatica es LL(1), False si no.
     """
-    def __init__(self, gramatica, primero_siguiente):
-        """Inicializa el analizador con la gramática y los conjuntos PRIMERO/SIGUIENTE."""
+    def __init__(self, gramatica, first_follow):
+        """Inicializa el analizador con la gramática y los conjuntos FIRST/FOLLOW."""
         self.gramatica = gramatica
-        self.primero_siguiente = primero_siguiente
+        self.first_follow = first_follow
         self.tabla_analisis = {}
         self.es_ll1 = False
 
@@ -33,10 +33,10 @@ class AnalizadorLL1:
         Construye la tabla de análisis LL(1).
 
         El algoritmo se basa en dos reglas para llenar la tabla M[A, a]:
-        1. Para cada producción A -> α, si un terminal 'a' está in PRIMERO(α),
+        1. Para cada producción A -> α, si un terminal 'a' está in FIRST(α),
            se añade A -> α a M[A, a].
-        2. Si 'e' (epsilon) está en PRIMERO(α), para cada terminal 'b' en
-           SIGUIENTE(A), se añade A -> α a M[A, b].
+        2. Si 'e' (epsilon) está en FIRST(α), para cada terminal 'b' en
+           FOLLOW(A), se añade A -> α a M[A, b].
 
         Si alguna celda de la tabla contiene más de una producción, la gramática
         no es LL(1).
@@ -49,10 +49,10 @@ class AnalizadorLL1:
 
         for nt in self.gramatica.no_terminales:
             for produccion in self.gramatica.obtener_producciones(nt):
-                primero_prod = self.primero_siguiente._primero_de_cadena(produccion)
+                first_prod = self.first_follow._first_de_cadena(produccion)
 
                 # Aplica la Regla 1
-                for terminal in primero_prod:
+                for terminal in first_prod:
                     if terminal != 'e':
                         clave = (nt, terminal)
                         if clave in self.tabla_analisis:
@@ -61,8 +61,8 @@ class AnalizadorLL1:
                             self.tabla_analisis[clave] = produccion
                 
                 # Aplica la Regla 2
-                if 'e' in primero_prod:
-                    for terminal in self.primero_siguiente.siguiente[nt]:
+                if 'e' in first_prod:
+                    for terminal in self.first_follow.follow[nt]:
                         clave = (nt, terminal)
                         if clave in self.tabla_analisis:
                             conflictos.append(clave)
