@@ -38,25 +38,14 @@ def main():
     first_follow = First_Follow(gramatica)
     first_follow.calcular_primero()
     first_follow.calcular_siguiente()
-    
-    # Descomentar para depuración:
-    # first_follow.imprimir_conjuntos()
 
     # Fase 3: Construir el analizador LL(1) y determinar si la gramática es compatible.
     analizador_ll1 = AnalizadorLL1(gramatica, first_follow)
     es_ll1 = analizador_ll1.construir_tabla_analisis()
-    
-    # Descomentar para depuración:
-    # if es_ll1:
-    #     analizador_ll1.imprimir_tabla()
 
     # Fase 4: Construir el analizador SLR(1) y determinar su compatibilidad.
     analizador_slr1 = AnalizadorSLR1(gramatica, first_follow)
     es_slr1 = analizador_slr1.construir_tabla_analisis()
-
-    # Descomentar para depuración:
-    # if es_slr1:
-    #     analizador_slr1.imprimir_estados()
 
     # Fase 5: Informar al usuario y proceder con el análisis de cadenas.
     print("\n--- Resultados del Análisis de la Gramática ---")

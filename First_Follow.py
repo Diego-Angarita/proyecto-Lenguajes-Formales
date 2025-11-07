@@ -114,7 +114,7 @@ class First_Follow:
         # Inicializa los conjuntos y aplica la Regla 1.
         for nt in self.gramatica.no_terminales:
             self.siguiente[nt] = set()
-        self.siguiente[self.gramatica.simbolo_inicial].add(')
+        self.siguiente[self.gramatica.simbolo_inicial].add('$')
 
         # Itera hasta la convergencia de los conjuntos.
         cambio = True
