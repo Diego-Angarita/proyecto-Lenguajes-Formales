@@ -1,11 +1,7 @@
 """
-AnalizadorLL1_Mejorado.py
-==========================
-Versión mejorada del AnalizadorLL1 que construye un árbol sintáctico
-MEJORA: Usa estructura de datos de ÁRBOL
+Implementación del Analizador LL(1)
+Analizador sintáctico predictivo descendente (Top-Down)
 """
-
-from ArbolSintactico import NodoArbol, ArbolSintactico
 
 class AnalizadorLL1:
     def __init__(self, gramatica, primero_siguiente):
@@ -15,115 +11,105 @@ class AnalizadorLL1:
         self.es_ll1 = False
         
     def construir_tabla_analisis(self):
-        """Construir tabla de análisis LL(1) - igual que antes"""
+        """
+        Construir tabla de análisis LL(1)
+        Tabla[A, a] contiene producción A -> α si a está en PRIMERO(α)
+        """
         self.tabla_analisis = {}
         conflictos = []
         
         for nt in self.gramatica.no_terminales:
             for produccion in self.gramatica.obtener_producciones(nt):
+                # Calcular PRIMERO de la producción
                 primero_prod = self.primero_siguiente._primero_de_cadena(produccion)
                 
+                # Para cada terminal en PRIMERO(produccion)
                 for terminal in primero_prod:
                     if terminal != 'e':
                         clave = (nt, terminal)
                         if clave in self.tabla_analisis:
+                            # Conflicto detectado
                             conflictos.append(clave)
                             self.es_ll1 = False
                         else:
                             self.tabla_analisis[clave] = produccion
                 
+                # Si epsilon en PRIMERO(produccion), agregar entradas para SIGUIENTE(nt)
                 if 'e' in primero_prod:
                     for terminal in self.primero_siguiente.siguiente[nt]:
                         clave = (nt, terminal)
                         if clave in self.tabla_analisis:
+                            # Conflicto detectado
                             conflictos.append(clave)
                             self.es_ll1 = False
                         else:
                             self.tabla_analisis[clave] = produccion
         
+        # Verificar si es LL(1) - sin conflictos
         if len(conflictos) == 0:
             self.es_ll1 = True
         
         return self.es_ll1
     
-    def analizar_con_arbol(self, cadena_entrada):
+    def analizar(self, cadena_entrada):
         """
-        NUEVA FUNCIONALIDAD: Analizar y construir árbol sintáctico
-        Retorna (aceptado, arbol_sintactico)
+        Analizar una cadena de entrada usando analizador LL(1)
+        Retorna True si la cadena es aceptada, False en caso contrario
         """
         if not self.es_ll1:
-            return False, None
+            return False
         
+        # Agregar $ al final de la entrada
         cadena_entrada += '$'
         
-        # Crear raíz del árbol
-        raiz = NodoArbol(self.gramatica.simbolo_inicial, 'no_terminal')
-        arbol = ArbolSintactico(raiz)
-        
-        # Pila ahora contiene tuplas (simbolo, nodo_arbol)
-        pila = [('$', None), (self.gramatica.simbolo_inicial, raiz)]
+        # Inicializar pila con $ y símbolo inicial
+        pila = ['$', self.gramatica.simbolo_inicial]
         indice_entrada = 0
         
         while len(pila) > 0:
-            simbolo_pila, nodo_actual = pila[-1]
+            tope = pila[-1]
             entrada_actual = cadena_entrada[indice_entrada] if indice_entrada < len(cadena_entrada) else '$'
             
             # Caso 1: Tope es un terminal
-            if simbolo_pila in self.gramatica.terminales or simbolo_pila == '$':
-                if simbolo_pila == entrada_actual:
+            if tope in self.gramatica.terminales or tope == '$':
+                if tope == entrada_actual:
                     pila.pop()
                     indice_entrada += 1
                 else:
-                    return False, None
+                    return False  # No coinciden
             
             # Caso 2: Tope es un no terminal
-            elif simbolo_pila in self.gramatica.no_terminales:
-                clave = (simbolo_pila, entrada_actual)
+            elif tope in self.gramatica.no_terminales:
+                clave = (tope, entrada_actual)
                 
                 if clave in self.tabla_analisis:
                     pila.pop()
                     produccion = self.tabla_analisis[clave]
                     
-                    # Crear nodos hijos en el árbol
+                    # Apilar producción en orden inverso (saltar epsilon)
                     if produccion != ['e']:
-                        # Crear nodos para cada símbolo de la producción
-                        nodos_hijos = []
-                        for simbolo in produccion:
-                            if simbolo in self.gramatica.terminales:
-                                hijo = NodoArbol(simbolo, 'terminal')
-                            else:
-                                hijo = NodoArbol(simbolo, 'no_terminal')
-                            nodos_hijos.append(hijo)
-                            nodo_actual.agregar_hijo(hijo)
-                        
-                        # Apilar en orden inverso con sus nodos
-                        for i in range(len(produccion) - 1, -1, -1):
-                            pila.append((produccion[i], nodos_hijos[i]))
-                    else:
-                        # Producción epsilon - agregar nodo epsilon
-                        hijo_epsilon = NodoArbol('e', 'terminal')
-                        nodo_actual.agregar_hijo(hijo_epsilon)
+                        for simbolo in reversed(produccion):
+                            pila.append(simbolo)
                 else:
-                    return False, None
+                    return False  # No hay producción válida
             else:
-                return False, None
+                return False  # Símbolo inválido
         
-        return indice_entrada == len(cadena_entrada), arbol
-    
-    def analizar(self, cadena_entrada):
-        aceptado, _ = self.analizar_con_arbol(cadena_entrada)
-        return aceptado
+        # Aceptar si se consumió toda la entrada
+        return indice_entrada == len(cadena_entrada)
     
     def imprimir_tabla(self):
         """Imprimir tabla de análisis para depuración"""
         print("\n=== Tabla de Análisis LL(1) ===")
         terminales = sorted(self.gramatica.terminales)
         
+        # Imprimir encabezado
         print(f"{'NT':<5}", end='')
         for t in terminales:
             print(f"{t:<15}", end='')
         print()
         
+        # Imprimir filas
         for nt in sorted(self.gramatica.no_terminales):
             print(f"{nt:<5}", end='')
             for t in terminales:

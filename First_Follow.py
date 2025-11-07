@@ -1,13 +1,35 @@
 """
-Cálculo de Conjuntos Primero y Siguiente
-Basado en algoritmos de Aho et al., Compilers: Principles, Techniques, and Tools
+Cálculo de Conjuntos PRIMERO y SIGUIENTE para Análisis Sintáctico
+
+Este módulo implementa los algoritmos fundamentales para calcular:
+- Conjuntos PRIMERO: Terminales que pueden aparecer al inicio de derivaciones
+- Conjuntos SIGUIENTE: Terminales que pueden aparecer después de un no terminal
+
+Estos conjuntos son esenciales para:
+- Construcción de tablas de análisis LL(1)
+- Resolución de conflictos en analizadores SLR(1)
+- Determinación de la aplicabilidad de reglas de producción
+
+Basado en los algoritmos estándar de:
+Aho, Sethi, Ullman - "Compilers: Principles, Techniques, and Tools"
 """
 
 class First_Follow:
+    """
+    Calculadora de Conjuntos PRIMERO y SIGUIENTE
+    
+    Implementa los algoritmos iterativos para calcular los conjuntos fundamentales
+    necesarios en el análisis sintáctico predictivo y LR.
+    
+    Atributos:
+        gramatica: Referencia a la gramática libre de contexto
+        primero: Mapeo de no terminales a sus conjuntos PRIMERO
+        siguiente: Mapeo de no terminales a sus conjuntos SIGUIENTE
+    """
     def __init__(self, gramatica):
         self.gramatica = gramatica
-        self.primero = {}  # Conjuntos PRIMERO para cada no terminal
-        self.siguiente = {}  # Conjuntos SIGUIENTE para cada no terminal
+        self.primero = {}    # Dict[str, Set[str]]: NoTerminal -> Conjunto PRIMERO
+        self.siguiente = {}  # Dict[str, Set[str]]: NoTerminal -> Conjunto SIGUIENTE
         
     def calcular_primero(self):
         """
@@ -79,6 +101,8 @@ class First_Follow:
             self.siguiente[nt] = set()
         
         # Regla 1: Agregar $ a SIGUIENTE del símbolo inicial
+        if self.gramatica.simbolo_inicial not in self.siguiente:
+            self.siguiente[self.gramatica.simbolo_inicial] = set()
         self.siguiente[self.gramatica.simbolo_inicial].add('$')
         
         # Calcular iterativamente conjuntos SIGUIENTE hasta que no haya cambios

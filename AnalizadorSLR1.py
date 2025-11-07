@@ -148,6 +148,18 @@ class AnalizadorSLR1:
                             else:
                                 self.accion[clave] = ('reducir', item.no_terminal, item.produccion)
                 
+                # Caso especial: Items con producción epsilon [A -> ·e]
+                elif simbolo_sig == 'e':
+                    # Para producciones epsilon, agregar reducción inmediatamente
+                    for terminal in self.primero_siguiente.siguiente[item.no_terminal]:
+                        clave = (estado.id_estado, terminal)
+                        
+                        if clave in self.accion:
+                            conflictos.append(f"Conflicto Epsilon-Reducir en estado {estado.id_estado}")
+                            self.es_slr1 = False
+                        else:
+                            self.accion[clave] = ('reducir', item.no_terminal, ['e'])
+                
                 # Caso 3: IR_A para no terminales
                 if simbolo_sig and simbolo_sig in self.gramatica.no_terminales:
                     clave = (estado.id_estado, simbolo_sig)
