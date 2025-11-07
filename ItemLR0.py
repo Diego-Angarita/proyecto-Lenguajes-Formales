@@ -12,8 +12,8 @@ class ItemLR0:
     """
     Representa un item LR(0), que es una producción con un punto.
 
-    Un item LR(0) como "A -> α·β" indica que hemos visto una cadena derivable
-    de α y esperamos ver una cadena derivable de β.
+    Un item LR(0) como "A -> a·b" indica que hemos visto una cadena derivable
+    de a y esperamos ver una cadena derivable de b.
 
     Atributos:
         no_terminal (str): El no terminal de la producción.
@@ -38,7 +38,7 @@ class ItemLR0:
         return hash((self.no_terminal, tuple(self.produccion), self.posicion_punto))
 
     def __repr__(self):
-        """Devuelve una representación legible del item, ej: "A -> α·β"."""
+        """Devuelve una representación legible del item, ej: "A -> a·b"."""
         prod_str = list(self.produccion)
         prod_str.insert(self.posicion_punto, '·')
         return f"{self.no_terminal} -> {''.join(prod_str)}"

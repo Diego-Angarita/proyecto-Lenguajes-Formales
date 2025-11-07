@@ -21,8 +21,8 @@ class Gramatica:
 
     Atributos:
         producciones (dict): Un diccionario que mapea cada no terminal a una lista
-                             de sus producciones. Cada producción es una lista de símbolos.
-                             Ej: {'S': [['A', 'b'], ['c']]}
+        de sus producciones. Cada producción es una lista de símbolos.
+        Ej: {'S': [['A', 'b'], ['c']]}
         no_terminales (set): Un conjunto que contiene todos los símbolos no terminales.
         terminales (set): Un conjunto que contiene todos los símbolos terminales.
         simbolo_inicial (str): El símbolo inicial de la gramática.
@@ -132,7 +132,7 @@ class Gramatica:
 
         Returns:
             str: Una cadena multilinea que representa la gramática, ideal para
-                 depuración y visualización. Ej: "S -> A b | c".
+            visualización. Ej: "S -> A b | c".
         """
         resultado = []
         # Ordena los no terminales para una salida consistente.
